@@ -5,10 +5,9 @@
   ],
   "packageRules": [
     {
-      "description": "The Python versions in the workflows are deliberate, not defaults: the build pins 3.12 because PySide6 publishes no wheels for the newest releases, and the test matrix pins the oldest and newest versions we support on purpose. Renovate bumping these breaks the build.",
-      "matchManagers": ["github-actions"],
-      "matchDepNames": ["python"],
-      "enabled": false
+      "description": "The Python version used by the build and PySide6 have to move together: the build can only adopt a new Python once PySide6 publishes wheels for it. Grouping them into one PR lets the build job be the gate — a bump that cannot work stays red and unmerged, rather than being pinned forever and quietly going stale.",
+      "matchPackageNames": ["python", "PySide6"],
+      "groupName": "python runtime"
     }
   ]
 }

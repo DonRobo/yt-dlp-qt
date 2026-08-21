@@ -97,6 +97,10 @@ The bundled binaries come from rolling "latest" URLs, so the build cache is keye
 URLs currently resolve to (`fetch_binaries.py --print-cache-key`): a new upstream yt-dlp or
 ffmpeg busts the cache, and nothing else does.
 
+Renovate raises dependency PRs, with the build's Python version and PySide6 grouped into one —
+the build can only move to a new Python once PySide6 has wheels for it, and the build job is
+what enforces that. A bump that cannot work stays red and does not get merged.
+
 ### Cutting a release
 
 1. Bump `__version__` in `src/ytdlp_qt/__init__.py` (the single source — `pyproject.toml` reads
@@ -138,7 +142,7 @@ it as you would any small tool from the internet: read the source if it matters 
 
 ## Licence
 
-No licence has been chosen for this code yet — add one before sharing it further.
+This code is [MIT](LICENSE).
 
 The bundled binaries keep their own: yt-dlp is Unlicense, and the bundled ffmpeg is a **GPL**
 build, so distributing the Windows zip as a whole means distributing GPL software (which is
