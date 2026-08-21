@@ -70,16 +70,18 @@ jobs:
       - name: Build
         run: pyinstaller --noconfirm packaging/ytdlp_qt.spec
 
-      - name: Check the bundled binaries actually run
+      # Runs the executable that is about to be shipped. Unit tests cannot see
+      # packaging faults: the window still opens, but every button is dead
+      # because the app cannot start its bundled programs.
+      - name: Self-test the built executable
         shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
-          vendor=dist/yt-dlp-qt/_internal/vendor
           if [ "${{ matrix.platform }}" = "win64" ]; then
-            "$vendor/yt-dlp.exe" --version
-            "$vendor/ffmpeg.exe" -version | head -1
-            "$vendor/ffprobe.exe" -version | head -1
+            ./dist/yt-dlp-qt/yt-dlp-qt.exe --self-test
           else
-            "$vendor/yt-dlp" --version
+            ./dist/yt-dlp-qt/yt-dlp-qt --self-test
           fi
 
       - name: Package

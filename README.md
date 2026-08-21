@@ -128,6 +128,18 @@ codec dropdown offers — x264, x265, VP9 and AV1 — using the
 [ffmpeg builds yt-dlp publishes itself](https://github.com/yt-dlp/FFmpeg-Builds), which carry
 the patches yt-dlp needs.
 
+### If it does not work
+
+Run the executable with `--self-test` from a terminal. It reports whether the build can find
+and actually start its bundled yt-dlp and ffmpeg, and whether the window can be constructed:
+
+```
+yt-dlp-qt.exe --self-test
+```
+
+CI runs the same check against every build, because a packaging fault can leave the window
+opening normally while every button is dead.
+
 ### Known limitations
 
 - The bundled yt-dlp ages, and sites break it regularly. Rebuild to pick up a newer one.

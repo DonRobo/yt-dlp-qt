@@ -73,7 +73,12 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="yt-dlp-qt",
-    console=False,          # no console window when she double-clicks it
+    # Own a console, but never show it: the console programs we start (yt-dlp,
+    # ffmpeg) then attach to it silently instead of each opening its own window.
+    # console=False would look tidier but gives every child its own visible
+    # console, and PySide6 does not bind the Qt call that would suppress that.
+    console=True,
+    hide_console="hide-early",
     disable_windowed_traceback=False,
     icon=None,
 )

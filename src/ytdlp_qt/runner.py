@@ -7,24 +7,15 @@ the next one.
 
 from __future__ import annotations
 
-import sys
-
 from PySide6.QtCore import QObject, QProcess, Signal
 
 from .command import PROGRESS_PREFIX, Job, Options, build_argv
 
-# Keeps a console window from flashing up for every child process on Windows.
-CREATE_NO_WINDOW = 0x08000000
-
-
-def configure_no_window(process: QProcess) -> None:
-    if sys.platform != "win32":
-        return
-
-    def modifier(args) -> None:  # pragma: no cover - Windows only
-        args.flags |= CREATE_NO_WINDOW
-
-    process.setCreateProcessArgumentsModifier(modifier)
+# Console windows are dealt with at build time instead: the Windows executable is
+# built with hide_console="hide-early", so it owns a console that is never shown
+# and the console programs we start attach to it rather than opening their own.
+# Qt's setCreateProcessArgumentsModifier would be the runtime equivalent, but
+# PySide6 does not bind it — calling it raises AttributeError on Windows.
 
 
 def _percent(text: str) -> float | None:
@@ -89,7 +80,6 @@ class QueueRunner(QObject):
 
         self._buffer = ""
         process = QProcess(self)
-        configure_no_window(process)
         process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         process.readyReadStandardOutput.connect(self._on_output)
         process.finished.connect(self._on_finished)

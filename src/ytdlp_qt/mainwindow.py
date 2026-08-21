@@ -30,7 +30,7 @@ from . import __version__
 from .binaries import Tools
 from .command import Job, Options, build_title_argv, parse_urls
 from .formats import AUDIO_FORMATS, BROWSERS, CONTAINERS, VIDEO_CODECS
-from .runner import QueueRunner, configure_no_window
+from .runner import QueueRunner
 from .settings import Settings
 
 HINT_STYLE = "color: palette(mid);"
@@ -338,7 +338,6 @@ class MainWindow(QMainWindow):
         self.download_button.setText("Fetching title…")
 
         process = QProcess(self)
-        configure_no_window(process)
         self.title_process = process
         output: list[str] = []
         process.readyReadStandardOutput.connect(
