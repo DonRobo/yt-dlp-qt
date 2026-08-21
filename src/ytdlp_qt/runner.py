@@ -119,7 +119,7 @@ class QueueRunner(QObject):
 
     def _handle_line(self, line: str) -> None:
         if line.startswith(PROGRESS_PREFIX):
-            parts = line[len(PROGRESS_PREFIX):].split("\t")
+            parts = line[len(PROGRESS_PREFIX) :].split("\t")
             parts += [""] * (3 - len(parts))
             fraction = _percent(parts[0])
             if fraction is not None:

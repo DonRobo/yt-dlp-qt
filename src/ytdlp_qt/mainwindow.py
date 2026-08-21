@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import __version__
 from .binaries import Tools
 from .command import Job, Options, build_title_argv, parse_urls
 from .formats import AUDIO_FORMATS, BROWSERS, CONTAINERS, VIDEO_CODECS
@@ -52,7 +53,7 @@ def _sanitise_filename(name: str) -> str:
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Video Downloader")
+        self.setWindowTitle(f"Video Downloader {__version__}")
         self.settings = Settings()
         self.tools = Tools()
         self.runner: QueueRunner | None = None
@@ -329,7 +330,8 @@ class MainWindow(QMainWindow):
 
     def _fetch_title_then_ask(self, url: str) -> None:
         """Look up the title first so the Save-as dialog can suggest a filename."""
-        assert self.tools.ytdlp is not None
+        if self.tools.ytdlp is None:
+            return
         argv = build_title_argv(str(self.tools.ytdlp), url, self._current_options())
 
         self.download_button.setEnabled(False)
@@ -393,9 +395,7 @@ class MainWindow(QMainWindow):
         if self.runner is not None:
             self.runner.stop()
 
-    def _on_progress(
-        self, index: int, total: int, fraction: float, speed: str, eta: str
-    ) -> None:
+    def _on_progress(self, index: int, total: int, fraction: float, speed: str, eta: str) -> None:
         self.progress_bar.setValue(int(fraction * 1000))
         parts = [f"{index}/{total}"] if total > 1 else []
         parts.append(f"{fraction * 100:.0f}%")

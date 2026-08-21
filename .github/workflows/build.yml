@@ -1,0 +1,147 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win64
+            label: windows
+          # Built on the oldest supported runner: a PyInstaller binary needs a
+          # glibc at least as old as the machines it has to run on.
+          - os: ubuntu-22.04
+            platform: linux64
+            label: linux
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" pyinstaller
+
+      # The download URLs are rolling "latest" links, so the key is derived from
+      # what they currently resolve to: a new upstream build busts the cache, and
+      # nothing else does.
+      - name: Resolve upstream binary versions
+        id: upstream
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          echo "key=$(python tools/fetch_binaries.py --platform ${{ matrix.platform }} --print-cache-key)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore bundled binaries
+        id: vendor-cache
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: vendor-${{ steps.upstream.outputs.key }}
+
+      - name: Fetch yt-dlp and ffmpeg
+        if: steps.vendor-cache.outputs.cache-hit != 'true'
+        run: python tools/fetch_binaries.py --platform ${{ matrix.platform }}
+
+      - name: Build
+        run: pyinstaller --noconfirm packaging/ytdlp_qt.spec
+
+      - name: Check the bundled binaries actually run
+        shell: bash
+        run: |
+          vendor=dist/yt-dlp-qt/_internal/vendor
+          if [ "${{ matrix.platform }}" = "win64" ]; then
+            "$vendor/yt-dlp.exe" --version
+            "$vendor/ffmpeg.exe" -version | head -1
+            "$vendor/ffprobe.exe" -version | head -1
+          else
+            "$vendor/yt-dlp" --version
+          fi
+
+      - name: Package
+        id: package
+        run: python tools/package.py --platform ${{ matrix.label }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yt-dlp-qt-${{ matrix.label }}
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # A tag that disagrees with the packaged version would ship archives whose
+      # names do not match the release. Fail before anything is published.
+      - name: Check the tag matches the package version
+        id: version
+        run: |
+          version=$(python -c "import sys; sys.path.insert(0, 'src'); import ytdlp_qt; print(ytdlp_qt.__version__)")
+          tag="${GITHUB_REF_NAME#v}"
+          echo "package version: $version / tag: $tag"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match __version__ $version — bump src/ytdlp_qt/__init__.py"
+            exit 1
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - run: ls -la artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            ## Downloads
+
+            | Platform | File |
+            | --- | --- |
+            | Windows 10/11 (64-bit) | `yt-dlp-qt-${{ steps.version.outputs.version }}-windows.zip` — extract and run `yt-dlp-qt.exe` |
+            | Linux (64-bit) | `yt-dlp-qt-${{ steps.version.outputs.version }}-linux.zip` — extract and run `./yt-dlp-qt` |
+
+            The Windows build has yt-dlp and ffmpeg inside it; nothing to install.
+            The Linux build bundles yt-dlp and uses your distribution's ffmpeg.
+
+            On first run Windows shows *"Windows protected your PC"* because the
+            program is not code-signed: **More info** → **Run anyway**.

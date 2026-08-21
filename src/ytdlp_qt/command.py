@@ -24,11 +24,11 @@ class Options:
 
     audio_only: bool = False
     # Video mode
-    container: str | None = None      # mp4 / mkv / webm, or None to keep the original
+    container: str | None = None  # mp4 / mkv / webm, or None to keep the original
     video_encoder: str | None = None  # ffmpeg encoder, e.g. libx264. None = no re-encode
     codec_preference: str | None = None  # -S vcodec: value, e.g. h264
     # Audio mode
-    audio_format: str | None = None   # mp3 / m4a / ..., or None for no conversion
+    audio_format: str | None = None  # mp3 / m4a / ..., or None for no conversion
     # Shared
     cookies_browser: str | None = None
     ffmpeg_dir: str | None = None

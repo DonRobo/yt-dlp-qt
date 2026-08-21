@@ -6,3 +6,4 @@ dist/
 vendor/
 *.egg-info/
 .pytest_cache/
+*.zip

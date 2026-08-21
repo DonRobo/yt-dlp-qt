@@ -10,7 +10,7 @@ should not have to open a terminal.
 
 ## For Windows
 
-Download `yt-dlp-qt-windows.zip` from the
+Download `yt-dlp-qt-<version>-windows.zip` from the
 [latest release](../../releases/latest), extract it anywhere, and double-click
 **yt-dlp-qt.exe**. Nothing to install — yt-dlp and ffmpeg are inside the zip.
 
@@ -23,11 +23,26 @@ Keep the extracted folder together — `yt-dlp-qt.exe` needs the `_internal` fol
 
 ## For Linux
 
+Either grab `yt-dlp-qt-<version>-linux.zip` from the
+[latest release](../../releases/latest):
+
+```sh
+unzip yt-dlp-qt-*-linux.zip     # use unzip, not a GUI extractor that drops the +x bit
+cd yt-dlp-qt-*/ && ./yt-dlp-qt
+```
+
+…or run it from a checkout:
+
 ```sh
 ./run.sh
 ```
 
-Creates a virtualenv on first run. Uses the `yt-dlp` and `ffmpeg` from your package manager.
+The release zip bundles yt-dlp but uses **your distribution's ffmpeg** — bundling it would add
+~128 MB for something every distribution already packages. Install it if you have not:
+`sudo pacman -S ffmpeg` / `sudo apt install ffmpeg`. The app says so on startup if it is missing.
+
+The zip is built on Ubuntu 22.04, so it needs glibc 2.35 or newer. On something older, use
+`./run.sh`.
 
 ## How the options map to yt-dlp
 
@@ -71,23 +86,61 @@ Layout:
 | `tools/fetch_binaries.py` | Downloads the binaries that get shipped. |
 | `packaging/ytdlp_qt.spec` | PyInstaller: one folder, no console window. |
 
-### Building the Windows zip
+### CI
 
-Push to GitHub; `.github/workflows/build-windows.yml` builds on `windows-latest` and uploads
-the zip as a workflow artifact. Tagging `v*` also attaches it to a GitHub release.
+| Workflow | Does what |
+| --- | --- |
+| `tests.yml` | pytest on Linux + Windows across Python 3.10 and 3.13, plus `ruff check`/`ruff format --check`. The suite imports no Qt, so it needs no PySide6 and finishes in seconds. |
+| `build.yml` | Builds the Windows and Linux zips on every push, and cuts a release on a `v*` tag. |
 
-To build by hand on a Windows machine:
+The bundled binaries come from rolling "latest" URLs, so the build cache is keyed on what those
+URLs currently resolve to (`fetch_binaries.py --print-cache-key`): a new upstream yt-dlp or
+ffmpeg busts the cache, and nothing else does.
 
-```
-pip install -e .[dev] pyinstaller
-python tools/fetch_binaries.py --platform win64
+### Cutting a release
+
+1. Bump `__version__` in `src/ytdlp_qt/__init__.py` (the single source — `pyproject.toml` reads
+   it, and the window title shows it).
+2. Commit, then tag and push:
+
+   ```sh
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+
+The tagged build refuses to publish if the tag and `__version__` disagree, then attaches both
+zips to a GitHub release with generated notes.
+
+### Building by hand
+
+```sh
+pip install -e '.[dev]' pyinstaller
+python tools/fetch_binaries.py --platform win64   # or linux64
 pyinstaller --noconfirm packaging/ytdlp_qt.spec
+python tools/package.py --platform windows        # or linux
 ```
 
-The zip is around 125 MB, most of it ffmpeg (~86 MB compressed). That buys a build with every
-encoder the codec dropdown offers, including x264, x265, VP9 and AV1.
+The Windows zip is about 200 MB, most of it ffmpeg. That buys a build with every encoder the
+codec dropdown offers — x264, x265, VP9 and AV1 — using the
+[ffmpeg builds yt-dlp publishes itself](https://github.com/yt-dlp/FFmpeg-Builds), which carry
+the patches yt-dlp needs.
 
 ### Known limitations
 
 - The bundled yt-dlp ages, and sites break it regularly. Rebuild to pick up a newer one.
 - No resolution/quality picker, playlist options, or subtitles yet.
+
+## A note on how this was written
+
+This project was written by [Claude Code](https://claude.com/claude-code), an AI coding agent,
+working from a feature description and reviewed by a human before release. The download,
+conversion and packaging paths were each exercised for real — not only unit-tested — but treat
+it as you would any small tool from the internet: read the source if it matters to you.
+
+## Licence
+
+No licence has been chosen for this code yet — add one before sharing it further.
+
+The bundled binaries keep their own: yt-dlp is Unlicense, and the bundled ffmpeg is a **GPL**
+build, so distributing the Windows zip as a whole means distributing GPL software (which is
+fine — it just means the ffmpeg source has to stay available, and
+[yt-dlp/FFmpeg-Builds](https://github.com/yt-dlp/FFmpeg-Builds) provides it).

@@ -9,7 +9,10 @@ which is where ``ytdlp_qt.binaries`` looks first.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
+import json
+import os
 import shutil
 import stat
 import sys
@@ -26,18 +29,51 @@ YTDLP_URL = {
 }
 YTDLP_NAME = {"win64": "yt-dlp.exe", "linux64": "yt-dlp"}
 
-# The "shared" builds are a fraction of the size of the static ones because
-# ffmpeg.exe and ffprobe.exe share their DLLs instead of embedding everything twice.
+# yt-dlp publishes its own ffmpeg builds, patched for the bugs that actually bite
+# yt-dlp; they are what the project recommends. The "shared" variant is half the size
+# of the static one because ffmpeg.exe and ffprobe.exe share their DLLs.
 FFMPEG_URL = {
     "win64": (
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
+        "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/"
         "ffmpeg-master-latest-win64-gpl-shared.zip"
     ),
-    "linux64": (
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
-        "ffmpeg-master-latest-linux64-gpl-shared.tar.xz"
-    ),
 }
+
+
+def _api(path: str) -> dict:
+    """Read the GitHub REST API, using the CI token when one is available."""
+    request = urllib.request.Request(f"https://api.github.com/{path}")
+    request.add_header("Accept", "application/vnd.github+json")
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(request) as response:  # noqa: S310 - fixed host
+        return json.load(response)
+
+
+def upstream_versions(platform: str) -> dict[str, str]:
+    """Identify exactly which upstream builds the URLs currently point at.
+
+    Both downloads are rolling "latest" links, so a cache key has to be derived
+    from what they resolve to right now, not from the URLs themselves.
+    """
+    versions = {"yt-dlp": _api("repos/yt-dlp/yt-dlp/releases/latest")["tag_name"]}
+    if platform == "win64":
+        wanted = FFMPEG_URL["win64"].rsplit("/", 1)[-1]
+        release = _api("repos/yt-dlp/FFmpeg-Builds/releases/tags/latest")
+        for asset in release["assets"]:
+            if asset["name"] == wanted:
+                versions["ffmpeg"] = asset["updated_at"]
+                break
+        else:
+            raise SystemExit(f"{wanted} is not in the yt-dlp/FFmpeg-Builds latest release")
+    return versions
+
+
+def cache_key(platform: str) -> str:
+    versions = upstream_versions(platform)
+    digest = hashlib.sha256(json.dumps(versions, sort_keys=True).encode()).hexdigest()
+    return f"{platform}-{digest[:16]}"
 
 
 def download(url: str) -> bytes:
@@ -82,14 +118,25 @@ def fetch_ffmpeg_windows() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--platform", choices=["win64", "linux64"], default="win64")
+    parser.add_argument(
+        "--print-cache-key",
+        action="store_true",
+        help="print a key identifying the current upstream builds, then exit",
+    )
     args = parser.parse_args()
+
+    if args.print_cache_key:
+        print(cache_key(args.platform))
+        return 0
 
     VENDOR.mkdir(parents=True, exist_ok=True)
     fetch_ytdlp(args.platform)
     if args.platform == "win64":
         fetch_ffmpeg_windows()
     else:
-        print("ffmpeg: skipped — install it from your distribution's package manager.")
+        # Bundling ffmpeg on Linux would add ~128 MB for something every distribution
+        # already packages, so the Linux build uses the system copy.
+        print("ffmpeg: skipped on Linux — install it with your package manager.")
     return 0
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ytdlp-qt"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A small Qt front-end for yt-dlp"
 requires-python = ">=3.10"
 dependencies = ["PySide6>=6.6"]
@@ -14,6 +14,9 @@ dev = ["pytest>=8"]
 
 [project.gui-scripts]
 ytdlp-qt = "ytdlp_qt.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "ytdlp_qt.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -25,3 +28,12 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+# PyInstaller injects Analysis, PYZ, EXE, COLLECT and SPECPATH at exec time.
+"packaging/ytdlp_qt.spec" = ["F821"]
+# assert is what pytest is for.
+"tests/*" = ["S101"]
