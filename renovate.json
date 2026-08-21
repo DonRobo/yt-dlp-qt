@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "The Python versions in the workflows are deliberate, not defaults: the build pins 3.12 because PySide6 publishes no wheels for the newest releases, and the test matrix pins the oldest and newest versions we support on purpose. Renovate bumping these breaks the build.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
+      "enabled": false
+    }
   ]
 }
