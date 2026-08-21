@@ -1,0 +1,59 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # PySide6 does not publish wheels for the very newest Python yet.
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+          pip install pyinstaller
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Fetch yt-dlp and ffmpeg
+        run: python tools/fetch_binaries.py --platform win64
+
+      - name: Build
+        run: pyinstaller --noconfirm packaging/ytdlp_qt.spec
+
+      - name: Smoke-test the bundled binaries
+        shell: pwsh
+        run: |
+          foreach ($name in "yt-dlp.exe", "ffmpeg.exe", "ffprobe.exe") {
+            $path = "dist/yt-dlp-qt/_internal/vendor/$name"
+            if (-not (Test-Path $path)) { throw "missing $path" }
+          }
+          & "dist/yt-dlp-qt/_internal/vendor/yt-dlp.exe" --version
+          & "dist/yt-dlp-qt/_internal/vendor/ffmpeg.exe" -version | Select-Object -First 1
+
+      - name: Package
+        run: Compress-Archive -Path dist/yt-dlp-qt/* -DestinationPath yt-dlp-qt-windows.zip
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yt-dlp-qt-windows
+          path: yt-dlp-qt-windows.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: yt-dlp-qt-windows.zip
