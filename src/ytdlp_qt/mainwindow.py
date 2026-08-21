@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, QStandardPaths, Qt
+from PySide6.QtCore import QProcess, QStandardPaths, Qt, QTimer
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -254,11 +254,14 @@ class MainWindow(QMainWindow):
 
     def _check_tools(self) -> None:
         problem = self.tools.problem()
-        if problem:
-            self._append_log(f"WARNING: {problem}")
-            QMessageBox.warning(self, "Missing program", problem)
-            if self.tools.ytdlp is None:
-                self.download_button.setEnabled(False)
+        if not problem:
+            return
+        self._append_log(f"WARNING: {problem}")
+        if self.tools.ytdlp is None:
+            self.download_button.setEnabled(False)
+        # Deferred, so building the window never blocks on a modal dialog: it
+        # shows once there is an event loop and a window behind it to click on.
+        QTimer.singleShot(0, lambda: QMessageBox.warning(self, "Missing program", problem))
 
     def _update_url_hint(self) -> None:
         count = len(parse_urls(self.url_edit.toPlainText()))
