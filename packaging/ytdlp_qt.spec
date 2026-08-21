@@ -35,6 +35,36 @@ a = Analysis(
     ],
     noarchive=False,
 )
+
+def drop_duplicate_libraries(analysis):
+    """Ship each bundled library once.
+
+    PyInstaller reclassifies the ffmpeg DLLs in vendor/ as binaries and hoists a
+    second copy to the top level. Only the vendor/ copies matter — that is where
+    ffmpeg.exe looks for them — and nothing in this app links against them, so
+    the hoisted set is pure duplication (~168 MB on Windows).
+    """
+    vendor_names = {
+        Path(dest).name.lower()
+        for dest, _src, _kind in list(analysis.binaries) + list(analysis.datas)
+        if Path(dest).parts[:1] == ("vendor",)
+    }
+
+    def is_hoisted_vendor_copy(entry):
+        dest = Path(entry[0])
+        # A bare filename at the top level that vendor/ already provides.
+        return not dest.parent.parts and dest.name.lower() in vendor_names
+
+    for name in ("binaries", "datas"):
+        entries = list(getattr(analysis, name))
+        kept = [entry for entry in entries if not is_hoisted_vendor_copy(entry)]
+        if len(kept) != len(entries):
+            print(f"spec: dropped {len(entries) - len(kept)} hoisted vendor copies from {name}")
+        setattr(analysis, name, kept)
+
+
+drop_duplicate_libraries(a)
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

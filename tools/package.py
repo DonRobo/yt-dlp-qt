@@ -11,6 +11,7 @@ import argparse
 import os
 import stat
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -20,12 +21,27 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from ytdlp_qt import __version__  # noqa: E402
 
 
-def add(archive: zipfile.ZipFile, path: Path, arcname: str) -> None:
-    info = zipfile.ZipInfo.from_file(path, arcname)
+def _info(path: Path, arcname: str, mode: int) -> zipfile.ZipInfo:
+    info = zipfile.ZipInfo(arcname, date_time=time.localtime(path.lstat().st_mtime)[:6])
     info.compress_type = zipfile.ZIP_DEFLATED
+    info.create_system = 3  # unix, so the mode below is honoured
     # The high 16 bits of external_attr hold the unix mode; without this every
     # extracted file comes out non-executable.
-    info.external_attr = (stat.S_IMODE(path.stat().st_mode) & 0xFFFF) << 16
+    info.external_attr = (mode & 0xFFFF) << 16
+    return info
+
+
+def add(archive: zipfile.ZipFile, path: Path, arcname: str) -> None:
+    if path.is_symlink():
+        # PyInstaller deduplicates the Qt libraries on Linux by symlinking the
+        # top-level names into PySide6/Qt/lib. Following those links would copy
+        # ~95 MB of libraries into the archive a second time, so store the link
+        # itself: the target path becomes the entry's contents.
+        info = _info(path, arcname, stat.S_IFLNK | 0o777)
+        archive.writestr(info, os.readlink(path))
+        return
+
+    info = _info(path, arcname, stat.S_IMODE(path.stat().st_mode))
     with path.open("rb") as source:
         archive.writestr(info, source.read())
 
@@ -47,7 +63,8 @@ def main() -> int:
 
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in sorted(source.rglob("*")):
-            if path.is_file():
+            # is_symlink() first: is_file() follows the link.
+            if path.is_symlink() or path.is_file():
                 add(archive, path, f"{root}/{path.relative_to(source).as_posix()}")
 
     size = target.stat().st_size / 1e6
