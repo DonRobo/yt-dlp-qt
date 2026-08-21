@@ -46,6 +46,15 @@ class Tools:
         self.ytdlp = find("yt-dlp")
         self.ffmpeg = find("ffmpeg")
         self.ffprobe = find("ffprobe")
+        # YouTube needs a JavaScript runtime to work out its signature
+        # parameters. Optional — without it yt-dlp still runs, but warns that
+        # formats may be missing, and that path is deprecated upstream.
+        self.deno = find("deno")
+
+    @property
+    def js_runtime(self) -> str | None:
+        """What to hand to --js-runtimes, as "deno:<path>"."""
+        return f"deno:{self.deno}" if self.deno else None
 
     @property
     def ffmpeg_dir(self) -> str | None:

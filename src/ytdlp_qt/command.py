@@ -32,6 +32,7 @@ class Options:
     # Shared
     cookies_browser: str | None = None
     ffmpeg_dir: str | None = None
+    js_runtime: str | None = None
 
 
 @dataclass
@@ -75,6 +76,9 @@ def build_argv(ytdlp: str, job: Job, options: Options) -> list[str]:
 
     if options.ffmpeg_dir:
         argv += ["--ffmpeg-location", options.ffmpeg_dir]
+
+    if options.js_runtime:
+        argv += ["--js-runtimes", options.js_runtime]
 
     if options.cookies_browser:
         argv += ["--cookies-from-browser", options.cookies_browser]
@@ -121,6 +125,8 @@ def build_title_argv(ytdlp: str, url: str, options: Options) -> list[str]:
         "--print",
         "%(title)s",
     ]
+    if options.js_runtime:
+        argv += ["--js-runtimes", options.js_runtime]
     if options.cookies_browser:
         argv += ["--cookies-from-browser", options.cookies_browser]
     argv.append(url)

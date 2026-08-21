@@ -80,6 +80,19 @@ def test_cookies_flag_only_when_a_browser_is_set():
     assert value_after(args, "--cookies-from-browser") == "firefox"
 
 
+def test_js_runtime_is_passed_to_downloads_and_title_lookups():
+    # YouTube needs it for both, so neither command may omit it.
+    args = argv(BATCH, Options(js_runtime="deno:/opt/deno"))
+    assert value_after(args, "--js-runtimes") == "deno:/opt/deno"
+    title = build_title_argv("yt-dlp", "u", Options(js_runtime="deno:/opt/deno"))
+    assert value_after(title, "--js-runtimes") == "deno:/opt/deno"
+
+
+def test_no_js_runtime_flag_when_none_was_found():
+    assert "--js-runtimes" not in argv(BATCH, Options())
+    assert "--js-runtimes" not in build_title_argv("yt-dlp", "u", Options())
+
+
 def test_ffmpeg_location_is_passed_through():
     args = argv(BATCH, Options(ffmpeg_dir="/opt/bin"))
     assert value_after(args, "--ffmpeg-location") == "/opt/bin"

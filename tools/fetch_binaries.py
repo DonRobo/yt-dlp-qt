@@ -32,6 +32,18 @@ YTDLP_NAME = {"win64": "yt-dlp.exe", "linux64": "yt-dlp"}
 # yt-dlp publishes its own ffmpeg builds, patched for the bugs that actually bite
 # yt-dlp; they are what the project recommends. The "shared" variant is half the size
 # of the static one because ffmpeg.exe and ffprobe.exe share their DLLs.
+# YouTube requires a JavaScript runtime; deno is the one yt-dlp enables by
+# default. Without it extraction is deprecated and formats can go missing.
+DENO_URL = {
+    "win64": (
+        "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
+    ),
+    "linux64": (
+        "https://github.com/denoland/deno/releases/latest/download/"
+        "deno-x86_64-unknown-linux-gnu.zip"
+    ),
+}
+
 FFMPEG_URL = {
     "win64": (
         "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/"
@@ -57,7 +69,10 @@ def upstream_versions(platform: str) -> dict[str, str]:
     Both downloads are rolling "latest" links, so a cache key has to be derived
     from what they resolve to right now, not from the URLs themselves.
     """
-    versions = {"yt-dlp": _api("repos/yt-dlp/yt-dlp/releases/latest")["tag_name"]}
+    versions = {
+        "yt-dlp": _api("repos/yt-dlp/yt-dlp/releases/latest")["tag_name"],
+        "deno": _api("repos/denoland/deno/releases/latest")["tag_name"],
+    }
     if platform == "win64":
         wanted = FFMPEG_URL["win64"].rsplit("/", 1)[-1]
         release = _api("repos/yt-dlp/FFmpeg-Builds/releases/tags/latest")
@@ -92,6 +107,22 @@ def fetch_ytdlp(platform: str) -> None:
     target.write_bytes(download(YTDLP_URL[platform]))
     make_executable(target)
     print(f"  -> {target.name} ({target.stat().st_size / 1e6:.1f} MB)")
+
+
+def fetch_deno(platform: str) -> None:
+    print("deno:")
+    payload = download(DENO_URL[platform])
+    name = "deno.exe" if platform == "win64" else "deno"
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for info in archive.infolist():
+            if Path(info.filename).name == name:
+                target = VENDOR / name
+                with archive.open(info) as source, target.open("wb") as handle:
+                    shutil.copyfileobj(source, handle)
+                make_executable(target)
+                print(f"  -> {name} ({target.stat().st_size / 1e6:.1f} MB)")
+                return
+    raise SystemExit(f"{name} was not found in the deno archive")
 
 
 def fetch_ffmpeg_windows() -> None:
@@ -131,6 +162,7 @@ def main() -> int:
 
     VENDOR.mkdir(parents=True, exist_ok=True)
     fetch_ytdlp(args.platform)
+    fetch_deno(args.platform)
     if args.platform == "win64":
         fetch_ffmpeg_windows()
     else:

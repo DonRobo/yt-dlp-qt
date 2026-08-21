@@ -65,3 +65,14 @@ def test_no_problem_when_everything_is_present(monkeypatch):
     tools = binaries.Tools()
     assert tools.problem() is None
     assert tools.ffmpeg_dir == str(binaries.Path("/usr/bin"))
+    assert tools.js_runtime == f"deno:{binaries.Path('/usr/bin/deno')}"
+
+
+def test_js_runtime_is_none_without_deno(monkeypatch):
+    monkeypatch.setattr(
+        binaries, "find", lambda name: None if name == "deno" else binaries.Path(f"/usr/bin/{name}")
+    )
+    tools = binaries.Tools()
+    # Missing deno degrades YouTube but must not block the app.
+    assert tools.js_runtime is None
+    assert tools.problem() is None

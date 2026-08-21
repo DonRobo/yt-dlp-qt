@@ -57,13 +57,13 @@ def self_test() -> int:
     failures: list[str] = []
 
     tools = Tools()
-    for name in ("ytdlp", "ffmpeg", "ffprobe"):
+    for name in ("ytdlp", "ffmpeg", "ffprobe", "deno"):
         path = getattr(tools, name)
         print(f"{name}: {path or 'NOT FOUND'}")
         if path is None:
             failures.append(f"{name} was not found")
 
-    for name, flag in (("ytdlp", "--version"), ("ffmpeg", "-version")):
+    for name, flag in (("ytdlp", "--version"), ("ffmpeg", "-version"), ("deno", "--version")):
         path = getattr(tools, name)
         if path is None:
             continue

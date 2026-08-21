@@ -301,6 +301,7 @@ class MainWindow(QMainWindow):
                 self.cookies_combo.currentData() if self.cookies_check.isChecked() else None
             ),
             ffmpeg_dir=self.tools.ffmpeg_dir,
+            js_runtime=self.tools.js_runtime,
         )
 
     def _last_directory(self) -> str:

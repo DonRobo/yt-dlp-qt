@@ -49,6 +49,7 @@ The zip is built on Ubuntu 22.04, so it needs glibc 2.35 or newer. On something 
 | In the window | What actually runs |
 | --- | --- |
 | Use cookies from browser | `--cookies-from-browser <name>` |
+| (always, when deno is bundled) | `--js-runtimes deno:<path>` |
 | Audio only + *Best available* | `-x` |
 | Audio only + MP3/WAV/… | `-x --audio-format mp3` |
 | Video + *Keep original* + *Any* | `-f "bv*+ba/b"` |
@@ -123,7 +124,11 @@ pyinstaller --noconfirm packaging/ytdlp_qt.spec
 python tools/package.py --platform windows        # or linux
 ```
 
-The Windows zip is about 200 MB, most of it ffmpeg. That buys a build with every encoder the
+YouTube serves obfuscated JavaScript that has to be executed to work out its signature
+parameters. yt-dlp has deprecated doing that without a real JS runtime, so **deno** is bundled
+too and passed via `--js-runtimes`; without it yt-dlp warns that formats may be missing.
+
+The Windows zip is about 175 MB, most of it ffmpeg and deno. That buys a build with every encoder the
 codec dropdown offers — x264, x265, VP9 and AV1 — using the
 [ffmpeg builds yt-dlp publishes itself](https://github.com/yt-dlp/FFmpeg-Builds), which carry
 the patches yt-dlp needs.
