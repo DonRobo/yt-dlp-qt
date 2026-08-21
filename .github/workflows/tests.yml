@@ -13,8 +13,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ["3.10", "3.13"]
+        # The OS axis is the one that matters — it catches path-separator bugs.
+        # The suite is version-insensitive, so one extra job on the oldest
+        # supported Python is enough to keep requires-python honest.
+        include:
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.10"
     steps:
       - uses: actions/checkout@v7
 

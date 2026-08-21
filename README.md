@@ -90,7 +90,7 @@ Layout:
 
 | Workflow | Does what |
 | --- | --- |
-| `tests.yml` | pytest on Linux + Windows across Python 3.10 and 3.13, plus `ruff check`/`ruff format --check`. The suite imports no Qt, so it needs no PySide6 and finishes in seconds. |
+| `tests.yml` | pytest on Linux and Windows, plus one job on the oldest supported Python to keep `requires-python` honest, plus `ruff check`/`ruff format --check`. The suite imports no Qt, so it needs no PySide6 and finishes in seconds. |
 | `build.yml` | Builds the Windows and Linux zips on every push, and cuts a release on a `v*` tag. |
 
 The bundled binaries come from rolling "latest" URLs, so the build cache is keyed on what those
