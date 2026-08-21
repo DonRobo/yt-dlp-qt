@@ -39,7 +39,7 @@ def test_bundled_copy_wins_over_path(fake_bundle, monkeypatch):
 def test_falls_back_to_path_when_not_bundled(fake_bundle, monkeypatch):
     monkeypatch.setattr(binaries, "EXE_SUFFIX", "")
     monkeypatch.setattr(binaries.shutil, "which", lambda name: "/usr/bin/ffmpeg")
-    assert str(binaries.find("ffmpeg")) == "/usr/bin/ffmpeg"
+    assert binaries.find("ffmpeg") == binaries.Path("/usr/bin/ffmpeg")
 
 
 def test_missing_everywhere_returns_none(fake_bundle, monkeypatch):
@@ -64,4 +64,4 @@ def test_no_problem_when_everything_is_present(monkeypatch):
     monkeypatch.setattr(binaries, "find", lambda name: binaries.Path(f"/usr/bin/{name}"))
     tools = binaries.Tools()
     assert tools.problem() is None
-    assert tools.ffmpeg_dir == "/usr/bin"
+    assert tools.ffmpeg_dir == str(binaries.Path("/usr/bin"))
