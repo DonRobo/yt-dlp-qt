@@ -58,7 +58,7 @@ jobs:
 
       - name: Restore bundled binaries
         id: vendor-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: vendor
           key: vendor-${{ steps.upstream.outputs.key }}
